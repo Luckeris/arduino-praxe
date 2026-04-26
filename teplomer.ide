@@ -1,0 +1,65 @@
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <LiquidCrystal_I2C.h>
+#include <WiFi.h>
+#include <WebServer.h>
+
+const int SENSOR_PIN = 4;
+OneWire oneWire(SENSOR_PIN);
+DallasTemperature sensors(&oneWire);
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+WebServer server(80);
+float tempC = 0.0;
+unsigned long lastTime = 0;
+
+// Super jednoduchá HTML stránka s moderním fetch() pro auto-aktualizaci
+const char html[] PROGMEM = R"(
+<!DOCTYPE html><html><body>
+  <h1>Teplota: <span id="t">--</span> &deg;C</h1>
+  <script>
+    setInterval(() => {
+      fetch('/t').then(r => r.text()).then(t => document.getElementById('t').innerText = t);
+    }, 2000);
+  </script>
+</body></html>
+)";
+
+void setup() {
+  Serial.begin(115200);
+  
+  sensors.begin();
+  lcd.init();
+  lcd.backlight();
+
+  // Vytvoření jednoduché WiFi sítě (bez hesla, výchozí IP bude 192.168.4.1)
+  WiFi.softAP("Teplomer");
+  
+  // Routování webu
+  server.on("/", [](){ server.send(200, "text/html", html); });
+  server.on("/t", [](){ server.send(200, "text/plain", String(tempC)); });
+  server.begin();
+}
+
+void loop() {
+  server.handleClient(); // Udržuje web server v chodu
+
+  // Měření a výpis každé 2 vteřiny
+  if (millis() - lastTime >= 2000) {
+    lastTime = millis();
+    
+    sensors.requestTemperatures();
+    tempC = sensors.getTempCByIndex(0);
+    
+    // 1. Výpis do Serial Monitoru
+    Serial.println(tempC);
+    
+    // 2. Výpis na LCD
+    lcd.setCursor(0,0);
+    lcd.print("IP: 192.168.4.1");
+    lcd.setCursor(0,1);
+    lcd.print("Teplota: ");
+    lcd.print(tempC, 1);
+    lcd.print("C  ");
+  }
+}
