@@ -1,0 +1,76 @@
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <LiquidCrystal_I2C.h>
+#include <WiFi.h> // Pouze základní WiFi knihovna
+
+OneWire oneWire(4);
+DallasTemperature sensors(&oneWire);
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+WiFiServer server(80); // Vytvoření raw serveru
+
+float tempC = 0.0;
+unsigned long lastMeasure = 0;
+
+void setup() {
+  Serial.begin(115200);
+  sensors.begin();
+  lcd.init();
+  lcd.backlight();
+
+  // Vytvoří WiFi
+  WiFi.softAP("Teplomer");
+  server.begin(); // Spustí server
+}
+
+void loop() {
+  // 1. Měření teploty (každou 1 vteřinu)
+  if (millis() - lastMeasure >= 1000) {
+    lastMeasure = millis();
+    
+    sensors.requestTemperatures();
+    tempC = sensors.getTempCByIndex(0);
+    
+    Serial.println(tempC);
+    
+    lcd.setCursor(0, 0);
+    lcd.print("IP: 192.168.4.1 ");
+    lcd.setCursor(0, 1);
+    lcd.print("Tepl: "); 
+    lcd.print(tempC, 1); 
+    lcd.print(" C  ");
+  }
+
+  // 2. Obsluha klienta (čisté WiFi.h)
+  WiFiClient client = server.available();
+  if (client) {
+    String currentLine = "";
+    while (client.connected()) {
+      if (client.available()) {
+        char c = client.read();
+        
+        // Konec požadavku z prohlížeče je prázdný řádek (\n)
+        if (c == '\n') {
+          if (currentLine.length() == 0) {
+            // Odeslání HTTP hlavičky
+            client.println("HTTP/1.1 200 OK");
+            client.println("Content-type:text/html");
+            client.println(); // Tento prázdný řádek odděluje hlavičku od samotného webu
+            
+            // Odeslání HTML s refreshem
+            client.println("<meta http-equiv=\"refresh\" content=\"1\">");
+            client.print("<h1 style=\"font-family:Arial;\">Teplota: ");
+            client.print(tempC, 1);
+            client.println(" &deg;C</h1>");
+            
+            break; // Konec komunikace
+          } else {
+            currentLine = "";
+          }
+        } else if (c != '\r') {
+          currentLine += c;
+        }
+      }
+    }
+    client.stop(); // Odpojení prohlížeče
+  }
+}
