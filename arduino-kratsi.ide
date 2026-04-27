@@ -1,7 +1,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <LiquidCrystal_I2C.h>
-#include <WiFi.h> // Pouze základní WiFi knihovna
+#include <WiFi.h>
 
 OneWire oneWire(4);
 DallasTemperature sensors(&oneWire);
@@ -40,7 +40,7 @@ void loop() {
     lcd.print(" C  ");
   }
 
-  // 2. Obsluha klienta (čisté WiFi.h)
+  // 2. Obsluha klienta
   WiFiClient client = server.available();
   if (client) {
     String currentLine = "";
