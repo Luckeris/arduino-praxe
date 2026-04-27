@@ -13,7 +13,7 @@ WebServer server(80);
 float tempC = 0.0;
 unsigned long lastTime = 0;
 
-// Super jednoduchá HTML stránka s moderním fetch() pro auto-aktualizaci
+//HTML fetch pro aktualizaci
 const char html[] PROGMEM = R"(
 <!DOCTYPE html><html><body>
   <h1>Teplota: <span id="t">--</span> &deg;C</h1>
@@ -33,7 +33,7 @@ void setup() {
   lcd.backlight();
 
   // Vytvoření jednoduché WiFi sítě (bez hesla, výchozí IP bude 192.168.4.1)
-  WiFi.softAP("Teplomer");
+  WiFi.softAP("Teplomer-Hlusko");
   
   // Routování webu
   server.on("/", [](){ server.send(200, "text/html", html); });
